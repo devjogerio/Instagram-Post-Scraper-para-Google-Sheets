@@ -1,0 +1,5 @@
+instaloader
+gspread
+google-auth
+python-dotenv
+pytest
