@@ -174,6 +174,19 @@ class ProxyManager:
                 }
             return result
 
+    # Atualiza, de forma thread-safe, as políticas de failover e cooldown do gerenciador.
+    def set_policies(self, max_consecutive_failures: int, failure_cooldown_seconds: int) -> None:
+        with self._lock:
+            self._max_consecutive_failures = int(max_consecutive_failures)
+            self._failure_cooldown_seconds = int(failure_cooldown_seconds)
+            self._metrics_sink.emit(
+                "proxy_policies_updated",
+                {
+                    "max_consecutive_failures": self._max_consecutive_failures,
+                    "failure_cooldown_seconds": self._failure_cooldown_seconds,
+                },
+            )
+
     # Executa health check em todos os proxies, se configurado, atualizando métricas.
     def _maybe_run_health_check_locked(self) -> None:
         if not self._health_check:
