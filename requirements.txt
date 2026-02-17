@@ -7,3 +7,7 @@ psycopg2-binary
 pyyaml
 redis
 pytest-cov
+fastapi
+uvicorn
+opensearch-py
+boto3

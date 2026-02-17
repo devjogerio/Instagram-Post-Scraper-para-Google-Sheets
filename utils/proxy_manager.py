@@ -5,6 +5,7 @@ from threading import Lock
 from typing import Callable, Dict, Optional
 
 from utils.logging_config import get_logger
+from utils.metrics import build_metrics_sink_from_env
 
 
 logger = get_logger(__name__)
@@ -21,6 +22,8 @@ class ProxyStats:
     last_success_at: Optional[float] = None
     last_failure_at: Optional[float] = None
     active: bool = True
+    total_duration_ms: float = 0.0
+    requests: int = 0
 
 
 class ProxyManager:
@@ -43,6 +46,7 @@ class ProxyManager:
         self._health_check = health_check
         self._health_check_interval_seconds = health_check_interval_seconds
         self._last_health_check_at: float = 0.0
+        self._metrics_sink = build_metrics_sink_from_env()
 
     # Cria um ProxyManager a partir de um arquivo de configuração de proxies.
     @classmethod
@@ -88,7 +92,7 @@ class ProxyManager:
                     return None
 
     # Registra sucesso de uso de um proxy para fins de métricas.
-    def mark_success(self, proxy: Optional[str]) -> None:
+    def mark_success(self, proxy: Optional[str], duration_ms: Optional[float] = None) -> None:
         if proxy is None:
             return
 
@@ -98,9 +102,21 @@ class ProxyManager:
             stats.consecutive_failures = 0
             stats.last_success_at = time.time()
             stats.active = True
+            if duration_ms is not None:
+                stats.total_duration_ms += float(duration_ms)
+            stats.requests += 1
+            self._metrics_sink.emit(
+                "proxy_success",
+                {
+                    "proxy": proxy,
+                    "duration_ms": duration_ms,
+                    "successes": stats.successes,
+                    "requests": stats.requests,
+                },
+            )
 
     # Registra falha de uso de um proxy e aplica política de desativação.
-    def mark_failure(self, proxy: Optional[str]) -> None:
+    def mark_failure(self, proxy: Optional[str], duration_ms: Optional[float] = None) -> None:
         if proxy is None:
             return
 
@@ -109,6 +125,9 @@ class ProxyManager:
             stats.failures += 1
             stats.consecutive_failures += 1
             stats.last_failure_at = time.time()
+            if duration_ms is not None:
+                stats.total_duration_ms += float(duration_ms)
+            stats.requests += 1
 
             if stats.consecutive_failures >= self._max_consecutive_failures:
                 if stats.active:
@@ -118,11 +137,42 @@ class ProxyManager:
                         stats.consecutive_failures,
                     )
                 stats.active = False
+            self._metrics_sink.emit(
+                "proxy_failure",
+                {
+                    "proxy": proxy,
+                    "duration_ms": duration_ms,
+                    "failures": stats.failures,
+                    "requests": stats.requests,
+                },
+            )
 
     # Retorna uma cópia das métricas atuais de uso dos proxies.
     def snapshot_metrics(self) -> Dict[str, ProxyStats]:
         with self._lock:
             return {proxy: ProxyStats(**vars(stats)) for proxy, stats in self._stats.items()}
+    # Retorna um diagnóstico consolidado em JSON com métricas derivadas por proxy.
+
+    def diagnostic_snapshot(self) -> Dict[str, Dict[str, float | int | bool | None]]:
+        with self._lock:
+            result: Dict[str, Dict[str, float | int | bool | None]] = {}
+            for proxy, stats in self._stats.items():
+                total = max(1, stats.requests)
+                avg_latency = stats.total_duration_ms / float(total)
+                error_rate = stats.failures / float(total)
+                availability = 1.0 if stats.active else 0.0
+                result[proxy] = {
+                    "successes": stats.successes,
+                    "failures": stats.failures,
+                    "requests": stats.requests,
+                    "avg_latency_ms": round(avg_latency, 3),
+                    "error_rate": round(error_rate, 5),
+                    "availability": availability,
+                    "last_success_at": stats.last_success_at,
+                    "last_failure_at": stats.last_failure_at,
+                    "active": stats.active,
+                }
+            return result
 
     # Executa health check em todos os proxies, se configurado, atualizando métricas.
     def _maybe_run_health_check_locked(self) -> None:
