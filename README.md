@@ -153,11 +153,45 @@ git commit -m "feat: descrever funcionalidade em pt-br"
 git push -u origin feature/nome-da-funcionalidade
 ```
 
+## CI/CD com GitHub Actions
+
+Este repositório conta com um workflow de CI/CD em `.github/workflows/ci.yml` com os seguintes jobs:
+
+- **lint**: valida a sintaxe de todos os arquivos Python com `python -m compileall .`.
+- **tests**: executa os testes automatizados com `pytest`.
+- **security**: roda `pip-audit` para analisar vulnerabilidades nas dependências.
+- **deploy**: executa o scraper (`python -m views.cli`) usando variáveis definidas em `secrets`.
+
+### Disparadores do workflow
+
+O workflow é disparado automaticamente em:
+
+- `push` para as branches:
+  - `main`
+  - `feature/**`
+- `pull_request` direcionados para `main`
+- `release` do tipo `created`
+- Execução manual via `workflow_dispatch`
+
+### Secrets necessários para o deploy
+
+Para que o job de deploy consiga executar o scraper em ambiente de CI, configure os seguintes `secrets` no GitHub (Settings → Secrets and variables → Actions):
+
+- `IG_USERNAME`
+- `IG_PASSWORD`
+- `SCRAPER_TARGETS`
+- `GOOGLE_SERVICE_ACCOUNT_JSON_PATH`
+- `GOOGLE_SHEETS_SPREADSHEET_ID`
+- `GOOGLE_SHEETS_WORKSHEET_NAME`
+- `SCRAPER_REQUEST_DELAY_SECONDS`
+- `PROXY_LIST_FILE_PATH`
+
+Os nomes correspondem às variáveis de ambiente esperadas pelo código, conforme `.env.example`.
+
 ## Próximos Passos Evolutivos
 
 - Scraping de múltiplas fontes (perfis, hashtags, listas configuráveis).
 - Rate limiting configurável e uso opcional de proxies.
 - Tratamento robusto de erros e logs estruturados.
 - Dashboard para visualização dos dados (web ou notebook).
-- Pipeline de deploy automatizado (CI/CD).
-
+- Aprimorar pipeline de deploy automatizado (CI/CD) com monitoramento e alertas.
