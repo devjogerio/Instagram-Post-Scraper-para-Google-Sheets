@@ -32,11 +32,19 @@ class ProxyConfig:
 
 
 @dataclass
+class DatabaseConfig:
+    enabled: bool
+    backend: str | None
+    dsn: str | None
+
+
+@dataclass
 class AppConfig:
     instagram: InstagramConfig
     google_sheets: GoogleSheetsConfig
     rate_limit: RateLimitConfig
     proxy: ProxyConfig
+    database: DatabaseConfig
 
 
 def _get_env(name: str, default: str | None = None) -> str:
@@ -78,10 +86,16 @@ def load_app_config() -> AppConfig:
         proxy_list_file_path=_get_env_optional("PROXY_LIST_FILE_PATH"),
     )
 
+    database = DatabaseConfig(
+        enabled=os.getenv("DB_ENABLED", "false").lower() == "true",
+        backend=_get_env_optional("DB_BACKEND"),
+        dsn=_get_env_optional("DB_DSN"),
+    )
+
     return AppConfig(
         instagram=instagram,
         google_sheets=google_sheets,
         rate_limit=rate_limit,
         proxy=proxy,
+        database=database,
     )
-

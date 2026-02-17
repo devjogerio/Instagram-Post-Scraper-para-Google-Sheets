@@ -92,7 +92,25 @@ python -m views.cli
 Este comando executa o fluxo principal:
 - lê perfis/hashtags de configuração,
 - dispara o scraper de Instagram,
-- envia os dados para o Google Sheets.
+- envia os dados para o Google Sheets e, opcionalmente, para o banco de dados quando configurado.
+
+## Uso opcional de banco de dados
+
+Além do Google Sheets, é possível armazenar os dados em um banco de dados relacional (por exemplo, PostgreSQL). Para isso:
+
+1. Configure no `.env`:
+
+```bash
+DB_ENABLED=true
+DB_BACKEND=postgres
+DB_DSN=postgresql://usuario:senha@host:porta/nome_do_banco
+```
+
+2. Garanta que o banco esteja acessível a partir do ambiente de execução.
+
+Quando `DB_ENABLED=true` e `DB_BACKEND`/`DB_DSN` estiverem definidos, o sistema:
+- cria (se necessário) a tabela `instagram_posts`;
+- grava cada post tanto no Google Sheets quanto no banco de dados.
 
 ## Testes Automatizados
 

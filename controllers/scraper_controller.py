@@ -7,7 +7,7 @@ from models.post import InstagramPost
 from utils.instagram_client import fetch_posts_for_target
 from utils.logging_config import get_logger
 from utils.proxy_manager import proxy_cycle
-from utils.sheets_client import append_posts_to_sheet
+from utils.storage import build_post_storages
 
 
 # Cria um logger específico para este módulo, permitindo rastrear o fluxo de scraping.
@@ -47,16 +47,22 @@ def _persist_posts(config: AppConfig, posts: Iterable[InstagramPost]) -> None:
     # Converte o iterável em lista para poder reutilizar e logar o tamanho.
     posts_list = list(posts)
 
-    # Se não houver posts, registra e sai sem tentar escrever na planilha.
+    # Se não houver posts, registra e sai sem tentar escrever em destinos.
     if not posts_list:
-        logger.info("Nenhum post coletado; nada será enviado ao Google Sheets")
+        logger.info("Nenhum post coletado; nada será enviado para armazenamento")
         return
 
-    # Loga a intenção de persistir a quantidade total de posts.
-    logger.info("Persistindo %d posts no Google Sheets", len(posts_list))
+    # Cria os storages configurados (Sheets, banco de dados, etc.).
+    storages = build_post_storages(config)
 
-    # Chama o cliente de Google Sheets para fazer o append das linhas.
-    append_posts_to_sheet(config.google_sheets, posts_list)
+    # Para cada storage configurado, persiste o conjunto de posts.
+    for storage in storages:
+        logger.info(
+            "Persistindo %d posts usando storage %s",
+            len(posts_list),
+            storage.__class__.__name__,
+        )
+        storage.save_posts(posts_list)
 
 
 def scrape_and_persist(config: AppConfig, max_posts_per_target: int = 20) -> None:
