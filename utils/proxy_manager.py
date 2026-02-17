@@ -45,6 +45,7 @@ class ProxyManager:
         self._failure_cooldown_seconds = failure_cooldown_seconds
         self._health_check = health_check
         self._health_check_interval_seconds = health_check_interval_seconds
+        self._last_health_check_at: float = 0.0
         self._metrics_sink = build_metrics_sink_from_env()
 
     # Cria um ProxyManager a partir de um arquivo de configuração de proxies.
