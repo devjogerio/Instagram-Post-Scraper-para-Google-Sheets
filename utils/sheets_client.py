@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Iterable, List
 
 import gspread
@@ -46,3 +47,35 @@ def append_posts_to_sheet(
     if rows:
         worksheet.append_rows(rows)
 
+
+def fetch_posts_from_sheet(config: GoogleSheetsConfig) -> List[InstagramPost]:
+    client = _build_client(config)
+    spreadsheet = client.open_by_key(config.spreadsheet_id)
+    worksheet = spreadsheet.worksheet(config.worksheet_name)
+
+    values = worksheet.get_all_values()
+    posts: List[InstagramPost] = []
+
+    for row in values:
+        if len(row) < 6:
+            continue
+
+        post_url, caption, likes, comments, published_at_str, media_type = row[:6]
+
+        try:
+            published_at = datetime.fromisoformat(published_at_str)
+        except ValueError:
+            continue
+
+        posts.append(
+            InstagramPost(
+                post_url=post_url,
+                caption=caption,
+                likes_count=int(likes),
+                comments_count=int(comments),
+                published_at=published_at,
+                media_type=media_type,
+            )
+        )
+
+    return posts
