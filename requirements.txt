@@ -4,3 +4,6 @@ google-auth
 python-dotenv
 pytest
 psycopg2-binary
+pyyaml
+redis
+pytest-cov
